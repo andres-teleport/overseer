@@ -27,7 +27,7 @@ func NewSupervisor() *Supervisor
 	Creates a new supervisor object that will handle the job operations.
 
 func (s *Supervisor) StartJob(cmd string, args ...string) (string, error)
-	Starts a new job with the provided command and arguments, using the os/exec standard package.
+	Starts a new job with the provided command and arguments, using the os/exec standard package. Returns a UUID that will uniquely identify the job in the subsequent operations, or an error if the job could not be started.
 
 func (s *Supervisor) StopJob(id string) error
 	If the process has not finished running, it will get killed with os.Process.Kill(). This function will return immediately, as the status can be queried afterwards.
@@ -145,7 +145,7 @@ Created out/user.crt from out/user.csr signed by out/ca.key
 
 ### Authorization
 
-Any client with a valid certificate (signed by the certificate authority) is authorized to start a new job. To keep things simple, each job is considered to be owned by the user that started it, users are not able to interact in any way through the API with jobs not started by them.
+Any client with a valid certificate (signed by the certificate authority) is authorized to start a new job. To keep things simple, each job is considered to be owned by the user that started it, users are not able to interact in any way through the API with jobs not started by them. The users will be distinguished from each other solely by the authentication mechanism described above (i.e. their certificates provided in the mTLS connections).
 
 No kind of [RBAC](https://en.wikipedia.org/wiki/Role-based_access_control) will be implemented.
 
