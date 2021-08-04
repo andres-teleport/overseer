@@ -203,12 +203,12 @@ Only one action is allowed per invocation.
 
 ```
 $ overseer-cli -server localhost:8888 -key user.key -cert user.crt -start echo Hello
-UNIQUE-JOB-ID
+09116992-8c70-4d82-a990-89c16dcbf568
 
-$ overseer-cli -server localhost:8888 -key user.key -cert user.crt -status UNIQUE-JOB-ID
+$ overseer-cli -server localhost:8888 -key user.key -cert user.crt -status 09116992-8c70-4d82-a990-89c16dcbf568
 Done = 0
 
-$ overseer-cli -server localhost:8888 -key user.key -cert user.crt -stdout UNIQUE-JOB-ID
+$ overseer-cli -server localhost:8888 -key user.key -cert user.crt -stdout 09116992-8c70-4d82-a990-89c16dcbf568
 Hello
 ```
 
