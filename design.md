@@ -8,26 +8,32 @@ Implement a simple remote process supervisor that lets its users start, stop and
 - Given many different implementation options, the most straighforward one will be chosen unless further requirements are provided
 - The jobs provided by users are well-intentioned and not malicious, the resource control mechanisms described below act as a safeguard against user/software errors, not targeted attacks
 - There will not be any attempts to persist the jobs or recover them on failure
-- The output from the jobs will be held in memory until consumed or discarded
+- The job list and their outputs will be held in memory, every attempt to read a stream will start from the beginning
 - All the jobs get the same set of resource limits
 - Everything contained in this document is a proposal and subject to approval and improvements, the final code may not exactly match this document
+- Certificate revocation is considered to be out of scope for this challenge, potential future options could be to add another service providing [CRL](https://en.wikipedia.org/wiki/Certificate_revocation_list) / [OCSP](https://en.wikipedia.org/wiki/Online_Certificate_Status_Protocol).
 
 ## Library
 
 The library will expose functions to start a given job, stop it, query its status and get a stream of its standard output and standard error. This is the proposed structure:
 
 ```go
+type Status struct {
+	Status   string
+	ExitCode int
+}
+
 func NewSupervisor() *Supervisor
 	Creates a new supervisor object that will handle the job operations.
 
 func (s *Supervisor) StartJob(cmd string, args ...string) (string, error)
 	Starts a new job with the provided command and arguments, using the os/exec standard package.
 
-func (s *Supervisor) StopJob(id string) (int, error)
-	Must be called to free the resources allocated by the supervisor for this process. If the process has not finished running, it will get killed with os.Process.Kill().
+func (s *Supervisor) StopJob(id string) error
+	If the process has not finished running, it will get killed with os.Process.Kill(). This function will return immediately, as the status can be queried afterwards.
 
-func (s *Supervisor) JobStatus(id string) string
-	Returns a string with the status of the given job: "Started" or "Done".
+func (s *Supervisor) JobStatus(id string) Status
+	Returns a Status struct that contains the status ("Started", "Done", "Stopped") of the job and its exit code (if it corresponds).
 
 func (s *Supervisor) JobStdOut(id string) (io.ReadCloser, error)
 	Returns a stream that corresponds to the standard output of the process.
@@ -35,6 +41,8 @@ func (s *Supervisor) JobStdOut(id string) (io.ReadCloser, error)
 func (s *Supervisor) JobStdErr(id string) (io.ReadCloser, error)
 	Returns a stream that corresponds to the standard error of the process.
 ```
+
+In all cases, an error will be returned if the provided job ID does not exist.
 
 ## API
 
@@ -56,17 +64,17 @@ message JobID {
     string id = 1;
 }
 
-message StopResponse {
-    int64 exitCode = 1;
-}
+message StopResponse {}
 
 enum Status {
     STARTED = 0;
     DONE = 1;
+    STOPPED = 2;
 }
 
 message StatusResponse {
     Status status = 1;
+    int64 exitCode = 2;
 }
 
 message OutputChunk {
@@ -137,43 +145,45 @@ Created out/user.crt from out/user.csr signed by out/ca.key
 
 ### Authorization
 
-The client will check the server provided certificate against his own known server certificate (provided by the sysadmin). The server will have a directory with the authorized client certificates. This is done so revoking access becomes possible without adding another service providing [CRL](https://en.wikipedia.org/wiki/Certificate_revocation_list) / [OCSP](https://en.wikipedia.org/wiki/Online_Certificate_Status_Protocol) or other mechanisms.
-
-To keep things simple, each job is considered to be owned by the user that started it, users are not able to interact in any way through the API with jobs not started by them.
+Any client with a valid certificate (signed by the certificate authority) is authorized to start a new job. To keep things simple, each job is considered to be owned by the user that started it, users are not able to interact in any way through the API with jobs not started by them.
 
 No kind of [RBAC](https://en.wikipedia.org/wiki/Role-based_access_control) will be implemented.
 
 ## Server
 
-An unsuccessful invocation of `overseer-server` will return a non-zero exit code.
+An unsuccessful invocation of `overseer-server` will return a non-zero exit code. Keys and certificates are expected to be in PEM format.
 
 ### Usage
 
-`overseer-server [-key PRIVATE-KEY] [-authorized-users USER-CERTIFICATE-DIR] [-listen ADDRESS:PORT]`
+`overseer-server [-key PRIVATE-KEY] [-cert SERVER-CERTIFICATE] [-ca CA-CERTIFICATE] [-listen ADDRESS:PORT]`
 
 ### Optional flags
 
-`-key PRIVATE-KEY` Path to the server private key in PEM format. Default: `certs/server.key`.
-
-`-authorized-users USER-CERTIFICATE-DIR` Path to the directory containing the authorized certificates. Default: `certs/authorized`.
-
 `-listen ADDRESS:PORT` Listening address and port. Default: `localhost:9999`.
+
+`-key PRIVATE-KEY` Path to the server private key. Default: `certs/server.key`.
+
+`-cert SERVER-CERTIFICATE` Path to the server certificate. Default: `certs/server.crt`.
+
+`-ca CA-CERTIFICATE` Path to the certificate of the Certificate Authority. Default: `certs/ca.crt`.
 
 ## Client
 
-A successful invocation of `overseer-cli` will have a return code of zero, a non-zero value is used for error cases.
+A successful invocation of `overseer-cli` will have a return code of zero, a non-zero value is used for error cases. Keys and certificates are expected to be in PEM format.
 
 ### Usage
 
-`overseer-cli [-server ADDRESS:PORT] [-key PRIVATE-KEY] [-cert SERVER-CERTIFICATE] ACTION [ARGS...]`
+`overseer-cli [-server ADDRESS:PORT] [-key PRIVATE-KEY] [-cert USER-CERTIFICATE] [-ca CA-CERTIFICATE] ACTION [ARGS...]`
 
 ### Optional flags
 
 `-server ADDRESS:PORT` Remote server hostname or IP address and port. Default: `localhost:9999`.
 
-`-key PRIVATE-KEY` Path to the user private key in PEM format. Default: `certs/user.key`.
+`-key PRIVATE-KEY` Path to the user private key. Default: `certs/user.key`.
 
-`-cert SERVER-CERTIFICATE` Path to the remote server certificate in PEM format. Default: `certs/server.crt`.
+`-cert USER-CERTIFICATE` Path to the user certificate. Default: `certs/user.crt`.
+
+`-ca CA-CERTIFICATE` Path to the certificate of the Certificate Authority. Default: `certs/ca.crt`.
 
 ### Action flags
 
@@ -183,44 +193,25 @@ Only one action is allowed per invocation.
 
 `-stop JOB-ID` Stops the job identified by `JOB-ID` and returns its exit code or an error if the provided job did not exist. It must be used to release the resources of the system.
 
-`-status JOB-ID` Returns the current state (Started or Done) of the job identified by `JOB-ID` or an error if the provided job did no exist.
+`-status JOB-ID` Returns the current state (Started, Done or Stopped) of the job identified by `JOB-ID` and its exit code if it corresponds, or an error if the provided job did no exist.
 
-`-stdout JOB-ID` Writes the standard output of the given job to the standard output of this process, or returns an error if another instances of this process is already connected.
+`-stdout JOB-ID` Writes the standard output of the given job to the standard output of this process, or returns an error if the provided job did no exist.
 
-`-stderr JOB-ID`	Writes the standard error of the given job to the standard output of this process, or returns an error if another instance of this process is already connected.
+`-stderr JOB-ID` Writes the standard error of the given job to the standard output of this process, or returns an error if the provided job did no exist.
 
 ### Example session
 
 ```
-$ overseer-cli -server localhost:8888 -key my-key.key -cert server.crt -start echo Hello
+$ overseer-cli -server localhost:8888 -key user.key -cert user.crt -start echo Hello
 UNIQUE-JOB-ID
 
-$ overseer-cli -server localhost:8888 -key my-key.key -cert server.crt -status UNIQUE-JOB-ID
-Done
+$ overseer-cli -server localhost:8888 -key user.key -cert user.crt -status UNIQUE-JOB-ID
+Done = 0
 
-$ overseer-cli -server localhost:8888 -key my-key.key -cert server.crt -stdout UNIQUE-JOB-ID
+$ overseer-cli -server localhost:8888 -key user.key -cert user.crt -stdout UNIQUE-JOB-ID
 Hello
-
-$ overseer-cli -server localhost:8888 -key my-key.key -cert server.crt -stop UNIQUE-JOB-ID
-0
 ```
-
 
 ## Resource control
 
-There are many ways to control the resources on a Linux system, alternatives considered were: `systemd-run`, `cpulimit`, `nice`, `ionice`,`cgroups`; but the `prlimit()` system call was chosen because it satisfies the requirements (being a system call and being able to enforce all the necessary limits). The proposed solution is to start the given job and then set the limits, the drawback being that the new process could exceed the resources before the limits are set, another drawback is that there is no reliable way to tell if a process exceeded the limits and got killed or not.
-
-The external package [golang.org/x/sys/unix](https://pkg.go.dev/golang.org/x/sys/unix) will be used because the `syscall` package of the standard library is deprecated.
-
-The limits to be used are:
-
-- `RLIMIT_AS`: virtual memory
-- `RLIMIT_CPU`: CPU time
-- `RLIMIT_DATA`: data and heap size
-- `RLIMIT_FSIZE`: size of the files created by the process
-- `RLIMIT_NOFILE`: number of files opened by the process
-- `RLIMIT_STACK`: stack size
-
-For a more detailed explanation of each limit see here: https://linux.die.net/man/2/prlimit.
-
-If time allows it (and is deemed necessary) an alternative implementation will be attempted, which is to `fork()` the server process, set the resource limits in place using the `setrlimit` system call and then `exec()` to the given job, avoiding the race condition described above. This would be straightforward to do in other languages such as C, but Go makes it more complicated as it doesn't expose `fork()` directly because it interferes with its goroutine scheduling system if not done within some constraints.
+After evaluating the alternatives (`systemd-run`, `cpulimit`, `nice`, `ionice`, `cgroup`, `prlimit`, `setrlimit`) and discussing with the evaluation team, [cgroup v2](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html) was chosen. In order for this to work, before starting a new job, the server process will run itself, set the needed cgroup resource controls and then call [`unix.Exec()`](https://pkg.go.dev/golang.org/x/sys/unix#Exec) to start the job. The external package [golang.org/x/sys/unix](https://pkg.go.dev/golang.org/x/sys/unix) will be used because the `syscall` package of the standard library is deprecated. The cgroup controllers to be used are: `cpu`, `io`, `memory`.
