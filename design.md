@@ -145,7 +145,7 @@ Created out/user.crt from out/user.csr signed by out/ca.key
 
 ### Authorization
 
-Any client with a valid certificate (signed by the certificate authority) is authorized to start a new job. To keep things simple, each job is considered to be owned by the user that started it, users are not able to interact in any way through the API with jobs not started by them. The users will be distinguished from each other solely by the authentication mechanism described above (i.e. their certificates provided in the mTLS connections).
+Any client with a valid certificate (signed by the certificate authority) is authorized to start a new job. To keep things simple, each job is considered to be owned by the user that started it, users are not able to interact in any way through the API with jobs not started by them. The users will be distinguished from each other solely by the authentication mechanism described above (i.e. their certificates provided in the mTLS connections). The common name (CN) field of the certificate will be used as a unique user ID.
 
 No kind of [RBAC](https://en.wikipedia.org/wiki/Role-based_access_control) will be implemented.
 
