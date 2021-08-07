@@ -82,22 +82,14 @@ func (s *Supervisor) StartJob(cmd string, args ...string) (string, error) {
 		stdout: multipipe.NewMultiPipe(),
 		stderr: multipipe.NewMultiPipe(),
 	}
+	job.cmd.Stdout = job.stdout
+	job.cmd.Stderr = job.stderr
 
 	uuid, err := ioutil.ReadFile("/proc/sys/kernel/random/uuid")
 	if err != nil {
 		return "", err
 	}
 	id := string(uuid)
-
-	stdoutPipe, err := job.cmd.StdoutPipe()
-	if err != nil {
-		return "", err
-	}
-
-	stderrPipe, err := job.cmd.StderrPipe()
-	if err != nil {
-		return "", err
-	}
 
 	s.mu.Lock()
 	s.processes[id] = job
@@ -107,15 +99,10 @@ func (s *Supervisor) StartJob(cmd string, args ...string) (string, error) {
 		return "", err
 	}
 
-	stdOutDoneCh := multipipe.CopyPipe(stdoutPipe, job.stdout)
-	stdErrDoneCh := multipipe.CopyPipe(stderrPipe, job.stderr)
-
 	go func() {
-		<-stdOutDoneCh
-		<-stdErrDoneCh
-
-		// TODO: handle the error
-		state, _ := job.cmd.Process.Wait()
+		state, err := job.cmd.Process.Wait()
+		job.stdout.CloseWithError(err)
+		job.stderr.CloseWithError(err)
 
 		s.mu.Lock()
 		if job.status.Status != StatusStopped {

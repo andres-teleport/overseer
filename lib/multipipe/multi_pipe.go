@@ -22,20 +22,6 @@ type Reader struct {
 	offset int
 }
 
-// CopyPipe copies all the bytes from r to w without blocking, returns a channel
-// that will be closed on completion
-func CopyPipe(r io.Reader, w *MultiPipe) chan struct{} {
-	ch := make(chan struct{})
-
-	go func() {
-		_, err := io.Copy(w, r)
-		w.CloseWithError(err)
-		close(ch)
-	}()
-
-	return ch
-}
-
 // Read reads all the available contents from the MultiPipe parent, then if
 // there is a read error or the stream is closed, an error will be returned
 func (m *Reader) Read(p []byte) (n int, err error) {
