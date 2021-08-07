@@ -55,8 +55,12 @@ func init() {
 			os.Unsetenv(v)
 		}
 
+		execPath, err := exec.LookPath(os.Args[1])
+		if err != nil {
+			log.Fatal(err)
+		}
 
-		if err := unix.Exec(os.Args[1], os.Args[1:], os.Environ()); err != nil {
+		if err := unix.Exec(execPath, os.Args[1:], os.Environ()); err != nil {
 			log.Fatal(err)
 		}
 	}
