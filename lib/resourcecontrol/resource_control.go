@@ -45,6 +45,8 @@ type ResourceLimits struct {
 // the limited command
 func init() {
 	if os.Getenv(execEnvVar) == execEnvVar {
+		log.SetFlags(0)
+
 		// Unset custom environment variables
 		for _, v := range []string{execEnvVar, cpuMaxEnvVar, memMaxEnvVar, ioMaxRbpsEnvVar, ioMaxWbpsEnvVar} {
 			os.Unsetenv(v)
