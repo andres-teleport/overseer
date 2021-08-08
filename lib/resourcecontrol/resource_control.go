@@ -32,6 +32,7 @@ const (
 
 var (
 	errCgroupNotMounted = errors.New("cgroup2 is not mounted")
+	errNotEnoughArgs    = errors.New("not enough arguments provided")
 )
 
 // TODO: add more limits
@@ -71,6 +72,10 @@ func init() {
 		// Unset custom environment variables
 		for _, v := range []string{execEnvVar, cpuMaxEnvVar, memMaxEnvVar, ioMaxRbpsEnvVar, ioMaxWbpsEnvVar} {
 			os.Unsetenv(v)
+		}
+
+		if len(os.Args) < 2 {
+			writeAndDie(errPipe, errNotEnoughArgs)
 		}
 
 		execPath, err := exec.LookPath(os.Args[1])
