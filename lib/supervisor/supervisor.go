@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"os/exec"
+	"strings"
 	"sync"
 
 	"github.com/andres-teleport/overseer/lib/multipipe"
@@ -89,7 +90,7 @@ func (s *Supervisor) StartJob(cmd string, args ...string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	id := string(uuid)
+	id := strings.TrimSpace(string(uuid))
 
 	s.mu.Lock()
 	s.processes[id] = job
