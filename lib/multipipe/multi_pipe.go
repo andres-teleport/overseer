@@ -32,7 +32,8 @@ func (m *Reader) Read(p []byte) (n int, err error) {
 	m.parent.cond.L.Lock()
 	defer m.parent.cond.L.Unlock()
 
-	if !m.parent.closed || m.offset >= len(m.parent.buf) {
+	// Wait for IO if at the end of the buffer and the input is still open
+	if m.offset >= len(m.parent.buf) && !m.parent.closed {
 		m.parent.cond.Wait()
 	}
 
