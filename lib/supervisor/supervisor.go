@@ -160,7 +160,7 @@ func (s *Supervisor) JobStdOut(id string) (rd *multipipe.Reader, err error) {
 	return
 }
 
-// JobStdOut returns an io.Reader corresponding to the standard error of the job
+// JobStdErr returns an io.Reader corresponding to the standard error of the job
 // with the given ID, or an error if the job was not found
 func (s *Supervisor) JobStdErr(id string) (rd *multipipe.Reader, err error) {
 	err = s.jobApplyFn(id, func(j *Job) {
