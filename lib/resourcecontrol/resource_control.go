@@ -26,6 +26,8 @@ const (
 	ioMaxWbpsEnvVar = "OVERSEER_IO_MAX_WBPS"
 
 	controlSubtree = "overseer"
+
+	errPipeFd = 3
 )
 
 var (
@@ -40,6 +42,14 @@ type ResourceLimits struct {
 	IOMaxWbps string
 }
 
+func writeAndDie(f *os.File, m error) {
+	if _, err := f.Write([]byte(m.Error())); err != nil {
+		log.Fatal(err)
+	}
+
+	os.Exit(1)
+}
+
 // init will look for a special environment variable that, if present, will
 // signal the need to set up the resource limits and call unix.Exec() to start
 // the limited command
@@ -47,7 +57,15 @@ func init() {
 	if os.Getenv(execEnvVar) == execEnvVar {
 		log.SetFlags(0)
 
-		setResourceLimits()
+		errPipe := os.NewFile(uintptr(errPipeFd), "pipe")
+		if errPipe == nil {
+			log.Fatal("pipe not found")
+		}
+
+		if err := setResourceLimits(); err != nil {
+			writeAndDie(errPipe, err)
+		}
+
 		// TODO: drop privileges
 
 		// Unset custom environment variables
@@ -57,11 +75,12 @@ func init() {
 
 		execPath, err := exec.LookPath(os.Args[1])
 		if err != nil {
-			log.Fatal(err)
+			writeAndDie(errPipe, err)
 		}
 
+		unix.CloseOnExec(errPipeFd)
 		if err := unix.Exec(execPath, os.Args[1:], os.Environ()); err != nil {
-			log.Fatal(err)
+			writeAndDie(errPipe, err)
 		}
 	}
 }
@@ -113,29 +132,29 @@ func getBlockDevs() ([]string, error) {
 	return rs, nil
 }
 
-func setResourceLimits() {
+func setResourceLimits() error {
 	cgroupPath, err := getCgroupRootPath()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	cgroupPath = path.Join(cgroupPath, controlSubtree)
 
 	if err := os.Mkdir(cgroupPath, 0755); err != nil && !os.IsExist(err) {
-		log.Fatal(err)
+		return err
 	}
 
 	// Set CPU limits
 	if v, ok := os.LookupEnv(cpuMaxEnvVar); ok {
 		if err := os.WriteFile(path.Join(cgroupPath, "cpu.max"), []byte(v), 0700); err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
 
 	// Set memory limits
 	if v, ok := os.LookupEnv(memMaxEnvVar); ok {
 		if err := os.WriteFile(path.Join(cgroupPath, "memory.max"), []byte(v), 0700); err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
 
@@ -152,25 +171,27 @@ func setResourceLimits() {
 	if ioLimitString != "" {
 		blkMajorMinors, err := getBlockDevs()
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		for _, b := range blkMajorMinors {
 			if err := os.WriteFile(path.Join(cgroupPath, "io.max"), []byte(b+ioLimitString), 0700); err != nil {
-				log.Fatal(err)
+				return err
 			}
 		}
 	}
 
 	// Add own PID to the cgroup
 	if err := os.WriteFile(path.Join(cgroupPath, "cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0700); err != nil {
-		log.Fatal(err)
+		return err
 	}
+
+	return nil
 }
 
 // Command takes the given name and args and returns a command with resource
 // limits enforced
-func Command(limits ResourceLimits, name string, args ...string) *exec.Cmd {
+func Command(limits ResourceLimits, name string, args ...string) *Cmd {
 	cmd := exec.Command("/proc/self/exe", append([]string{name}, args...)...)
 	cmd.Env = append(os.Environ(),
 		execEnvVar+"="+execEnvVar,
@@ -180,5 +201,5 @@ func Command(limits ResourceLimits, name string, args ...string) *exec.Cmd {
 		ioMaxWbpsEnvVar+"="+limits.IOMaxWbps,
 	)
 
-	return cmd
+	return &Cmd{cmd}
 }

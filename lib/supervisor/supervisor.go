@@ -3,7 +3,6 @@ package supervisor
 import (
 	"errors"
 	"io/ioutil"
-	"os/exec"
 	"strings"
 	"sync"
 
@@ -29,7 +28,7 @@ type Status struct {
 
 // TODO: add option to set the environment variables
 type Job struct {
-	cmd    *exec.Cmd
+	cmd    *resourcecontrol.Cmd
 	status Status
 	stdout *multipipe.MultiPipe
 	stderr *multipipe.MultiPipe
@@ -86,6 +85,10 @@ func (s *Supervisor) StartJob(cmd string, args ...string) (string, error) {
 	job.cmd.Stdout = job.stdout
 	job.cmd.Stderr = job.stderr
 
+	if err := job.cmd.Start(); err != nil {
+		return "", err
+	}
+
 	uuid, err := ioutil.ReadFile("/proc/sys/kernel/random/uuid")
 	if err != nil {
 		return "", err
@@ -95,10 +98,6 @@ func (s *Supervisor) StartJob(cmd string, args ...string) (string, error) {
 	s.mu.Lock()
 	s.processes[id] = job
 	s.mu.Unlock()
-
-	if err := job.cmd.Start(); err != nil {
-		return "", err
-	}
 
 	go func() {
 		state, err := job.cmd.Process.Wait()
