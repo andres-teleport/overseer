@@ -55,35 +55,37 @@ func writeAndDie(f *os.File, m error) {
 // signal the need to set up the resource limits and call unix.Exec() to start
 // the limited command
 func init() {
-	if os.Getenv(execEnvVar) == execEnvVar {
-		log.SetFlags(0)
+	if os.Getenv(execEnvVar) != execEnvVar {
+		return
+	}
 
-		errPipe := os.NewFile(uintptr(errPipeFd), "pipe")
-		if errPipe == nil {
-			log.Fatal("pipe not found")
-		}
+	log.SetFlags(0)
 
-		if err := setResourceLimits(); err != nil {
-			writeAndDie(errPipe, err)
-		}
+	errPipe := os.NewFile(uintptr(errPipeFd), "pipe")
+	if errPipe == nil {
+		log.Fatal("pipe not found")
+	}
 
-		// TODO: drop privileges
+	if err := setResourceLimits(); err != nil {
+		writeAndDie(errPipe, err)
+	}
 
-		unsetCustomEnvVars()
+	// TODO: drop privileges
 
-		if len(os.Args) < 2 {
-			writeAndDie(errPipe, errNotEnoughArgs)
-		}
+	unsetCustomEnvVars()
 
-		execPath, err := exec.LookPath(os.Args[1])
-		if err != nil {
-			writeAndDie(errPipe, err)
-		}
+	if len(os.Args) < 2 {
+		writeAndDie(errPipe, errNotEnoughArgs)
+	}
 
-		unix.CloseOnExec(errPipeFd)
-		if err := unix.Exec(execPath, os.Args[1:], os.Environ()); err != nil {
-			writeAndDie(errPipe, err)
-		}
+	execPath, err := exec.LookPath(os.Args[1])
+	if err != nil {
+		writeAndDie(errPipe, err)
+	}
+
+	unix.CloseOnExec(errPipeFd)
+	if err := unix.Exec(execPath, os.Args[1:], os.Environ()); err != nil {
+		writeAndDie(errPipe, err)
 	}
 }
 

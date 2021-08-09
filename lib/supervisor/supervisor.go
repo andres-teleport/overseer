@@ -35,7 +35,7 @@ type Job struct {
 }
 
 type Supervisor struct {
-	mu        *sync.Mutex
+	mu        sync.Mutex
 	processes map[string]*Job
 }
 
@@ -43,7 +43,6 @@ type Supervisor struct {
 // and operating with jobs
 func NewSupervisor() *Supervisor {
 	return &Supervisor{
-		mu:        &sync.Mutex{},
 		processes: make(map[string]*Job),
 	}
 }
