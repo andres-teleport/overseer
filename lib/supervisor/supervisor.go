@@ -61,8 +61,7 @@ func (s *Supervisor) jobApplyFn(id string, jobFn func(*Job)) error {
 }
 
 // StartJob runs the given command and arguments, enforcing resource controls.
-// Returns a UUID to identify the job or an error on failure. cmd must be an
-// absolute path.
+// Returns a UUID to identify the job or an error on failure.
 func (s *Supervisor) StartJob(cmd string, args ...string) (string, error) {
 	job := &Job{
 		cmd: resourcecontrol.Command(

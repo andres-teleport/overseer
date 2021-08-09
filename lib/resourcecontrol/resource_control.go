@@ -69,10 +69,7 @@ func init() {
 
 		// TODO: drop privileges
 
-		// Unset custom environment variables
-		for _, v := range []string{execEnvVar, cpuMaxEnvVar, memMaxEnvVar, ioMaxRbpsEnvVar, ioMaxWbpsEnvVar} {
-			os.Unsetenv(v)
-		}
+		unsetCustomEnvVars()
 
 		if len(os.Args) < 2 {
 			writeAndDie(errPipe, errNotEnoughArgs)
@@ -198,13 +195,11 @@ func setResourceLimits() error {
 // limits enforced
 func Command(limits ResourceLimits, name string, args ...string) *Cmd {
 	cmd := exec.Command("/proc/self/exe", append([]string{name}, args...)...)
-	cmd.Env = append(os.Environ(),
-		execEnvVar+"="+execEnvVar,
-		cpuMaxEnvVar+"="+limits.CPUMax,
-		memMaxEnvVar+"="+limits.MemMax,
-		ioMaxRbpsEnvVar+"="+limits.IOMaxRbps,
-		ioMaxWbpsEnvVar+"="+limits.IOMaxWbps,
-	)
+	cmd.Env = append(os.Environ(), execEnvVar+"="+execEnvVar)
+
+	for _, ev := range genLimitsEnvVars(limits) {
+		cmd.Env = append(cmd.Env, ev.String())
+	}
 
 	return &Cmd{cmd}
 }
