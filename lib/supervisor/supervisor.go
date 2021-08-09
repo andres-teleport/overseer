@@ -100,17 +100,16 @@ func (s *Supervisor) StartJob(cmd string, args ...string) (string, error) {
 
 	go func() {
 		state, err := job.cmd.Process.Wait()
+		s.mu.Lock()
 		if err == nil {
 			job.status.ExitCode = state.ExitCode()
 		}
 		job.stdout.CloseWithError(err)
 		job.stderr.CloseWithError(err)
 
-		s.mu.Lock()
 		if job.status.Status != StatusStopped {
 			job.status.Status = StatusDone
 		}
-
 		s.mu.Unlock()
 	}()
 
