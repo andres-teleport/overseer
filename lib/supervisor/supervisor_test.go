@@ -45,6 +45,45 @@ func TestStartStopStatus(t *testing.T) {
 	}
 }
 
+func TestStartStopTwice(t *testing.T) {
+	sup := NewSupervisor()
+
+	jobID, err := sup.StartJob("sleep", "1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rd, err := sup.JobStdOut(jobID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	io.Copy(&buf, rd)
+
+	status, err := sup.JobStatus(jobID)
+	if err != nil {
+		t.Fatal(err)
+	} else if status.Status != StatusDone {
+		t.Errorf("StatusDone expected, %d got", status.Status)
+	}
+
+	if err := sup.StopJob(jobID); err != ErrJobFinished {
+		t.Errorf("expected '%s', got '%s'", ErrJobFinished, err)
+	}
+
+	if err := sup.StopJob(jobID); err != ErrJobFinished {
+		t.Errorf("expected '%s', got '%s'", ErrJobFinished, err)
+	}
+
+	status, err = sup.JobStatus(jobID)
+	if err != nil {
+		t.Fatal(err)
+	} else if status.Status != StatusDone {
+		t.Errorf("StatusDone expected, %d got", status.Status)
+	}
+}
+
 func TestStdOut(t *testing.T) {
 	sup := NewSupervisor()
 	testString := "hello world"

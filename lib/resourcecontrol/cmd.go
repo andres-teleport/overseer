@@ -24,7 +24,9 @@ func (c *Cmd) Start() error {
 		return err
 	}
 
-	w.Close()
+	if err = w.Close(); err != nil {
+		return err
+	}
 
 	out, err := io.ReadAll(r)
 	if err != nil {

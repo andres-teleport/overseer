@@ -58,8 +58,7 @@ func TestSetResourceLimits(t *testing.T) {
 	}
 
 	if err := setResourceLimits(); err != nil {
-		t.Error(err)
-		t.FailNow()
+		t.Fatal(err)
 	}
 
 	out, err = os.ReadFile(path.Join(cgroupPath, controlSubtree, "cpu.max"))
