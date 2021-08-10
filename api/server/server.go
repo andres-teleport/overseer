@@ -62,6 +62,10 @@ func (s *Server) Serve() error {
 	return s.srv.Serve(s.l)
 }
 
+func (s *Server) Close() error {
+	return s.l.Close()
+}
+
 func (s *Server) Start(ctx context.Context, job *api.Job) (*api.JobID, error) {
 	commonName, err := authentication.GetCommonNameFromCtx(ctx)
 	if err != nil {

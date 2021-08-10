@@ -63,7 +63,7 @@ func TestActions(t *testing.T) {
 	assertNil(t, err)
 
 	go srv.Serve()
-	defer srv.l.Close()
+	defer srv.Close()
 
 	cli, err := newKnownClient(getServerAddress(srv.l))
 	assertNil(t, err)
@@ -119,7 +119,7 @@ func TestBadActions(t *testing.T) {
 	assertNil(t, err)
 
 	go srv.Serve()
-	defer srv.l.Close()
+	defer srv.Close()
 
 	cli, err := newKnownClient(getServerAddress(srv.l))
 	assertNil(t, err)
@@ -176,7 +176,7 @@ func TestAuthorization(t *testing.T) {
 	assertNil(t, err)
 
 	go srv.Serve()
-	defer srv.l.Close()
+	defer srv.Close()
 
 	// User A
 	cli, err := newKnownClient(getServerAddress(srv.l))
@@ -224,7 +224,7 @@ func TestGetCommonNameFromCtx(t *testing.T) {
 	assertNil(t, err)
 
 	go srv.Serve()
-	defer srv.l.Close()
+	defer srv.Close()
 
 	srv.mu.Lock()
 	if len(srv.jobOwners) > 0 {
