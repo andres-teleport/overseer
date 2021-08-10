@@ -117,6 +117,8 @@ func stream(jobID *api.JobID, srv grpc.ServerStream, sendFn func(*api.OutputChun
 			eof = true
 		} else if err != nil {
 			return err
+		} else if n == 0 {
+			continue
 		}
 
 		if err := sendFn(&api.OutputChunk{
