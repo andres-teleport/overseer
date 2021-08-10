@@ -18,6 +18,13 @@ func assertNil(t *testing.T, err error) {
 	}
 }
 
+func assertStatusCode(t *testing.T, err error, expected codes.Code) {
+	statusCode := status.Convert(err).Code()
+	if statusCode != expected {
+		t.Errorf("'%s' expected, '%s' got", expected, statusCode)
+	}
+}
+
 func newTestServer() (*Server, error) {
 	return NewServer(
 		"localhost:0",
@@ -106,6 +113,63 @@ func TestActions(t *testing.T) {
 	}
 }
 
+func TestBadActions(t *testing.T) {
+	srv, err := newTestServer()
+	assertNil(t, err)
+
+	go srv.Serve()
+	defer srv.l.Close()
+
+	cli, err := newKnownClient(getServerAddress(srv.l))
+	assertNil(t, err)
+
+	invalidJobID := "invalid-id"
+
+	// Start
+	_, err = cli.Start("")
+	assertStatusCode(t, err, codes.InvalidArgument)
+
+	// StdOut
+	rd, err := cli.StdOut(invalidJobID)
+	assertNil(t, err)
+
+	_, err = io.ReadAll(rd)
+	assertStatusCode(t, err, codes.PermissionDenied)
+
+	rd, err = cli.StdOut("")
+	assertNil(t, err)
+
+	_, err = io.ReadAll(rd)
+	assertStatusCode(t, err, codes.PermissionDenied)
+
+	// StdErr
+	rd, err = cli.StdErr(invalidJobID)
+	assertNil(t, err)
+
+	_, err = io.ReadAll(rd)
+	assertStatusCode(t, err, codes.PermissionDenied)
+
+	rd, err = cli.StdErr("")
+	assertNil(t, err)
+
+	_, err = io.ReadAll(rd)
+	assertStatusCode(t, err, codes.PermissionDenied)
+
+	// Status
+	_, err = cli.Status(invalidJobID)
+	assertStatusCode(t, err, codes.PermissionDenied)
+
+	_, err = cli.Status("")
+	assertStatusCode(t, err, codes.PermissionDenied)
+
+	// Stop
+	err = cli.Stop(invalidJobID)
+	assertStatusCode(t, err, codes.PermissionDenied)
+
+	err = cli.Stop("")
+	assertStatusCode(t, err, codes.PermissionDenied)
+}
+
 func TestAuthorization(t *testing.T) {
 	srv, err := newTestServer()
 	assertNil(t, err)
@@ -128,10 +192,7 @@ func TestAuthorization(t *testing.T) {
 
 	// Status (User B)
 	_, err = anotherCli.Status(jobID)
-	statusCode := status.Convert(err).Code()
-	if statusCode != codes.PermissionDenied {
-		t.Errorf("'%s' expected, '%s' got", codes.PermissionDenied, statusCode)
-	}
+	assertStatusCode(t, err, codes.PermissionDenied)
 
 	// Status (User A)
 	_, err = cli.Status(jobID)
@@ -142,10 +203,7 @@ func TestAuthorization(t *testing.T) {
 	assertNil(t, err)
 
 	_, err = io.ReadAll(rd)
-	statusCode = status.Convert(err).Code()
-	if statusCode != codes.PermissionDenied {
-		t.Errorf("'%s' expected, '%s' got", codes.PermissionDenied, statusCode)
-	}
+	assertStatusCode(t, err, codes.PermissionDenied)
 
 	// StdOut (User A)
 	rd, err = cli.StdOut(jobID)
@@ -191,8 +249,7 @@ func TestGetCommonNameFromCtx(t *testing.T) {
 
 		srv.mu.Lock()
 		if owner, ok := srv.jobOwners[jobID]; !ok {
-			srv.mu.Unlock()
-			t.FailNow()
+			t.Errorf("'%s' owner expected, got none", owner)
 		} else if owner != u.expectedCN {
 			t.Errorf("'%s' expected, '%s' got", u.expectedCN, owner)
 		}

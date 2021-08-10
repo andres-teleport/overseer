@@ -11,6 +11,12 @@ import (
 	"github.com/andres-teleport/overseer/lib/multipipe"
 	"github.com/andres-teleport/overseer/lib/supervisor"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
+
+var (
+	ErrEmptyCommand = status.Error(codes.InvalidArgument, "empty job command provided")
 )
 
 type Server struct {
@@ -62,9 +68,13 @@ func (s *Server) Start(ctx context.Context, job *api.Job) (*api.JobID, error) {
 		return nil, err
 	}
 
+	if len(job.Command) == 0 {
+		return nil, ErrEmptyCommand
+	}
+
 	jobID, err := s.supervisor.StartJob(job.Command, job.Arguments...)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Aborted, err.Error())
 	}
 
 	s.mu.Lock()
@@ -77,13 +87,21 @@ func (s *Server) Start(ctx context.Context, job *api.Job) (*api.JobID, error) {
 }
 
 func (s *Server) Stop(ctx context.Context, jobID *api.JobID) (*api.StopResponse, error) {
-	return &api.StopResponse{}, s.supervisor.StopJob(jobID.Id)
+	err := s.supervisor.StopJob(jobID.Id)
+
+	if err == supervisor.ErrJobFinished {
+		err = status.Error(codes.FailedPrecondition, err.Error())
+	} else {
+		err = status.Error(codes.Internal, err.Error())
+	}
+
+	return &api.StopResponse{}, err
 }
 
 func (s *Server) Status(context context.Context, jobID *api.JobID) (*api.StatusResponse, error) {
 	st, err := s.supervisor.JobStatus(jobID.Id)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	var status api.Status
@@ -106,7 +124,7 @@ func (s *Server) Status(context context.Context, jobID *api.JobID) (*api.StatusR
 func stream(jobID *api.JobID, srv grpc.ServerStream, sendFn func(*api.OutputChunk) error, fn func(string) (*multipipe.Reader, error)) error {
 	out, err := fn(jobID.Id)
 	if err != nil {
-		return err
+		return status.Error(codes.Internal, err.Error())
 	}
 
 	buf := make([]byte, 8192)
@@ -116,7 +134,7 @@ func stream(jobID *api.JobID, srv grpc.ServerStream, sendFn func(*api.OutputChun
 		if err == io.EOF {
 			eof = true
 		} else if err != nil {
-			return err
+			return status.Error(codes.Aborted, err.Error())
 		}
 
 		if err := sendFn(&api.OutputChunk{

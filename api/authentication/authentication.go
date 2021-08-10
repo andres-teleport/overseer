@@ -4,16 +4,17 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"io/ioutil"
 
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 )
 
 var (
-	ErrParsingCACert = errors.New("could not parse CA certificate")
-	ErrMissingCN     = errors.New("could not get the Common Name from the certificate")
+	ErrParsingCACert = status.Error(codes.Unauthenticated, "could not parse CA certificate")
+	ErrMissingCN     = status.Error(codes.Unauthenticated, "could not get the Common Name from the certificate")
 )
 
 func getCerts(keyFile, certFile, caFile string) (cert tls.Certificate, certPool *x509.CertPool, err error) {
