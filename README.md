@@ -31,17 +31,15 @@ Example:
 ./cli -start ls -- -lh /
 ```
 
-### Running tests
-
-The tests will need to run under a privileged user (i.e. using `sudo`) unless
-the current user has enough permissions to modify the cgroup2 filesystem.
-
 ## Instructions
 
 ### Running the tests
 
+The tests will need to run under a privileged user (i.e. using `sudo`) unless
+the current user has enough permissions to modify the cgroup2 filesystem.
+
 ```
-./test.sh
+sudo ./test.sh
 ```
 
 ### Building the binaries
@@ -63,9 +61,12 @@ Default certificates for testing are provided under `bin/certs`.
 
 ### Running the server
 
+The server will need to run under a privileged user (i.e. using `sudo`) unless
+the current user has enough permissions to modify the cgroup2 filesystem.
+
 ```
 cd bin
-./server
+sudo ./server
 ```
 
 For more information about usage please look at the
