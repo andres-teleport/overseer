@@ -63,12 +63,14 @@ func main() {
 		rd, err = cli.StdOut(stdOutJobID)
 		if err == nil {
 			_, err = io.Copy(os.Stdout, rd)
+			_ = rd.Close()
 		}
 	case len(stdErrJobID) > 0:
 		var rd *io.PipeReader
 		rd, err = cli.StdErr(stdErrJobID)
 		if err == nil {
 			_, err = io.Copy(os.Stderr, rd)
+			_ = rd.Close()
 		}
 	default:
 		err = errNoActionProvided

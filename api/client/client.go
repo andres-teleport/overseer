@@ -69,18 +69,18 @@ func copyStream(streamer api.JobworkerService_StdOutClient, w *io.PipeWriter) {
 		if err == io.EOF {
 			eof = true
 		} else if err != nil {
-			w.CloseWithError(err)
+			_ = w.CloseWithError(err)
 		}
 
 		if chunk != nil {
 			if _, err := w.Write(chunk.Output); err != nil {
-				w.CloseWithError(err)
+				_ = w.CloseWithError(err)
 				return
 			}
 		}
 	}
 
-	w.Close()
+	_ = w.Close()
 }
 
 func (c *Client) StdOut(jobID string) (*io.PipeReader, error) {
