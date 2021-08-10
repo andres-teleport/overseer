@@ -104,14 +104,14 @@ func (s *Server) Status(context context.Context, jobID *api.JobID) (*api.StatusR
 }
 
 func stream(jobID *api.JobID, srv grpc.ServerStream, sendFn func(*api.OutputChunk) error, fn func(string) (*multipipe.Reader, error)) error {
-	stdout, err := fn(jobID.Id)
+	out, err := fn(jobID.Id)
 	if err != nil {
 		return err
 	}
 
 	buf := make([]byte, 8192)
 	for eof := false; !eof; {
-		n, err := stdout.Read(buf)
+		n, err := out.Read(buf)
 
 		if err == io.EOF {
 			eof = true
