@@ -57,12 +57,12 @@ func (s *Server) Serve() error {
 }
 
 func (s *Server) Start(ctx context.Context, job *api.Job) (*api.JobID, error) {
-	jobID, err := s.supervisor.StartJob(job.Command, job.Arguments...)
+	commonName, err := authentication.GetCommonNameFromCtx(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	commonName, err := authentication.GetCommonNameFromCtx(ctx)
+	jobID, err := s.supervisor.StartJob(job.Command, job.Arguments...)
 	if err != nil {
 		return nil, err
 	}
