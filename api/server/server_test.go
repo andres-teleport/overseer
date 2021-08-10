@@ -6,6 +6,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/andres-teleport/overseer/api"
 	"github.com/andres-teleport/overseer/api/client"
 	"github.com/andres-teleport/overseer/lib/supervisor"
 	"google.golang.org/grpc/codes"
@@ -97,7 +98,7 @@ func TestActions(t *testing.T) {
 	}
 
 	// Status
-	expectedStatus := "DONE"
+	expectedStatus := api.Status_DONE
 	jobStatus, err := cli.Status(jobID)
 	assertNil(t, err)
 

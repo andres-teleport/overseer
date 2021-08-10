@@ -13,11 +13,6 @@ type Client struct {
 	client api.JobworkerServiceClient
 }
 
-type Status struct {
-	Status   string
-	ExitCode int64
-}
-
 func NewClient(serverAddr, keyFile, certFile, caFile string) (*Client, error) {
 	creds, err := authentication.NewClientTransportCredentials(keyFile, certFile, caFile)
 	if err != nil {
@@ -51,16 +46,8 @@ func (c *Client) Stop(jobID string) error {
 	return err
 }
 
-func (c *Client) Status(jobID string) (Status, error) {
-	statusResp, err := c.client.Status(context.Background(), &api.JobID{Id: jobID})
-	if err != nil {
-		return Status{}, err
-	}
-
-	return Status{
-		Status:   statusResp.Status.String(),
-		ExitCode: statusResp.ExitCode,
-	}, nil
+func (c *Client) Status(jobID string) (*api.StatusResponse, error) {
+	return c.client.Status(context.Background(), &api.JobID{Id: jobID})
 }
 
 func copyStream(streamer api.JobworkerService_StdOutClient, w *io.PipeWriter) {

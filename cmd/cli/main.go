@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/andres-teleport/overseer/api"
 	"github.com/andres-teleport/overseer/api/client"
 )
 
@@ -50,9 +51,9 @@ func main() {
 	case len(stopJobID) > 0:
 		err = cli.Stop(stopJobID)
 	case len(statusJobID) > 0:
-		var status client.Status
+		var status *api.StatusResponse
 		if status, err = cli.Status(statusJobID); err == nil {
-			if status.Status != "STARTED" {
+			if status.Status != api.Status_STARTED {
 				fmt.Println(status.Status, "=", status.ExitCode)
 			} else {
 				fmt.Println(status.Status)
