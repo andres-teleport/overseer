@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net"
 	"testing"
@@ -70,11 +71,11 @@ func TestActions(t *testing.T) {
 
 	// Start
 	testPhrase := "hello server"
-	jobID, err := cli.Start("echo", testPhrase)
+	jobID, err := cli.Start(context.Background(), "echo", testPhrase)
 	assertNil(t, err)
 
 	// StdOut
-	rd, err := cli.StdOut(jobID)
+	rd, err := cli.StdOut(context.Background(), jobID)
 	assertNil(t, err)
 
 	out, err := io.ReadAll(rd)
@@ -86,7 +87,7 @@ func TestActions(t *testing.T) {
 	}
 
 	// StdErr
-	rd, err = cli.StdErr(jobID)
+	rd, err = cli.StdErr(context.Background(), jobID)
 	assertNil(t, err)
 
 	out, err = io.ReadAll(rd)
@@ -99,7 +100,7 @@ func TestActions(t *testing.T) {
 
 	// Status
 	expectedStatus := api.Status_DONE
-	jobStatus, err := cli.Status(jobID)
+	jobStatus, err := cli.Status(context.Background(), jobID)
 	assertNil(t, err)
 
 	if jobStatus.Status != expectedStatus {
@@ -107,7 +108,7 @@ func TestActions(t *testing.T) {
 	}
 
 	// Stop
-	err = cli.Stop(jobID)
+	err = cli.Stop(context.Background(), jobID)
 	st := status.Convert(err)
 	if st.Message() != supervisor.ErrJobFinished.Error() {
 		t.Errorf("'%s' expected, '%s' got", supervisor.ErrJobFinished, err)
@@ -127,47 +128,47 @@ func TestBadActions(t *testing.T) {
 	invalidJobID := "invalid-id"
 
 	// Start
-	_, err = cli.Start("")
+	_, err = cli.Start(context.Background(), "")
 	assertStatusCode(t, err, codes.InvalidArgument)
 
 	// StdOut
-	rd, err := cli.StdOut(invalidJobID)
+	rd, err := cli.StdOut(context.Background(), invalidJobID)
 	assertNil(t, err)
 
 	_, err = io.ReadAll(rd)
 	assertStatusCode(t, err, codes.PermissionDenied)
 
-	rd, err = cli.StdOut("")
+	rd, err = cli.StdOut(context.Background(), "")
 	assertNil(t, err)
 
 	_, err = io.ReadAll(rd)
 	assertStatusCode(t, err, codes.PermissionDenied)
 
 	// StdErr
-	rd, err = cli.StdErr(invalidJobID)
+	rd, err = cli.StdErr(context.Background(), invalidJobID)
 	assertNil(t, err)
 
 	_, err = io.ReadAll(rd)
 	assertStatusCode(t, err, codes.PermissionDenied)
 
-	rd, err = cli.StdErr("")
+	rd, err = cli.StdErr(context.Background(), "")
 	assertNil(t, err)
 
 	_, err = io.ReadAll(rd)
 	assertStatusCode(t, err, codes.PermissionDenied)
 
 	// Status
-	_, err = cli.Status(invalidJobID)
+	_, err = cli.Status(context.Background(), invalidJobID)
 	assertStatusCode(t, err, codes.PermissionDenied)
 
-	_, err = cli.Status("")
+	_, err = cli.Status(context.Background(), "")
 	assertStatusCode(t, err, codes.PermissionDenied)
 
 	// Stop
-	err = cli.Stop(invalidJobID)
+	err = cli.Stop(context.Background(), invalidJobID)
 	assertStatusCode(t, err, codes.PermissionDenied)
 
-	err = cli.Stop("")
+	err = cli.Stop(context.Background(), "")
 	assertStatusCode(t, err, codes.PermissionDenied)
 }
 
@@ -188,26 +189,26 @@ func TestAuthorization(t *testing.T) {
 
 	// Start (User A)
 	testPhrase := "hello server"
-	jobID, err := cli.Start("echo", testPhrase)
+	jobID, err := cli.Start(context.Background(), "echo", testPhrase)
 	assertNil(t, err)
 
 	// Status (User B)
-	_, err = anotherCli.Status(jobID)
+	_, err = anotherCli.Status(context.Background(), jobID)
 	assertStatusCode(t, err, codes.PermissionDenied)
 
 	// Status (User A)
-	_, err = cli.Status(jobID)
+	_, err = cli.Status(context.Background(), jobID)
 	assertNil(t, err)
 
 	// StdOut (User B)
-	rd, err := anotherCli.StdOut(jobID)
+	rd, err := anotherCli.StdOut(context.Background(), jobID)
 	assertNil(t, err)
 
 	_, err = io.ReadAll(rd)
 	assertStatusCode(t, err, codes.PermissionDenied)
 
 	// StdOut (User A)
-	rd, err = cli.StdOut(jobID)
+	rd, err = cli.StdOut(context.Background(), jobID)
 	assertNil(t, err)
 
 	out, err := io.ReadAll(rd)
@@ -245,7 +246,7 @@ func TestGetCommonNameFromCtx(t *testing.T) {
 		cli, err := u.newClientFn(getServerAddress(srv.l))
 		assertNil(t, err)
 
-		jobID, err := cli.Start("echo", "hello")
+		jobID, err := cli.Start(context.Background(), "echo", "hello")
 		assertNil(t, err)
 
 		srv.mu.Lock()

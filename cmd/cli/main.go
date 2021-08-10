@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -42,17 +43,19 @@ func main() {
 		log.Fatal(err)
 	}
 
+	ctx := context.Background()
+
 	switch {
 	case len(startCmd) > 0:
 		var jobID string
-		if jobID, err = cli.Start(startCmd, flag.Args()...); err == nil {
+		if jobID, err = cli.Start(ctx, startCmd, flag.Args()...); err == nil {
 			fmt.Println(jobID)
 		}
 	case len(stopJobID) > 0:
-		err = cli.Stop(stopJobID)
+		err = cli.Stop(ctx, stopJobID)
 	case len(statusJobID) > 0:
 		var status *api.StatusResponse
-		if status, err = cli.Status(statusJobID); err == nil {
+		if status, err = cli.Status(ctx, statusJobID); err == nil {
 			if status.Status != api.Status_STARTED {
 				fmt.Println(status.Status, "=", status.ExitCode)
 			} else {
@@ -61,14 +64,14 @@ func main() {
 		}
 	case len(stdOutJobID) > 0:
 		var rd *io.PipeReader
-		rd, err = cli.StdOut(stdOutJobID)
+		rd, err = cli.StdOut(ctx, stdOutJobID)
 		if err == nil {
 			_, err = io.Copy(os.Stdout, rd)
 			_ = rd.Close()
 		}
 	case len(stdErrJobID) > 0:
 		var rd *io.PipeReader
-		rd, err = cli.StdErr(stdErrJobID)
+		rd, err = cli.StdErr(ctx, stdErrJobID)
 		if err == nil {
 			_, err = io.Copy(os.Stderr, rd)
 			_ = rd.Close()
