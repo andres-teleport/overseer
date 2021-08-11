@@ -150,24 +150,26 @@ func TestUnknownClientAuthentication(t *testing.T) {
 }
 
 func TestInvalidCreds(t *testing.T) {
-	cs := [][]string{
-		// Invalid key
-		{"authentication_test.go", "test-assets/server.crt", "test-assets/ca.crt"},
-		{"/", "test-assets/server.crt", "test-assets/ca.crt"},
-
-		// Invalid cert
-		{"test-assets/server.key", "authentication_test.go", "test-assets/ca.crt"},
-		{"test-assets/server.key", "/", "test-assets/ca.crt"},
-
-		// Invalid CA
-		{"test-assets/server.key", "test-assets/server.crt", "authentication_test.go"},
-		{"test-assets/server.key", "test-assets/server.crt", "/"},
+	cs := []struct {
+		test string
+		key  string
+		cert string
+		ca   string
+	}{
+		{"invalid key", "authentication_test.go", "test-assets/server.crt", "test-assets/ca.crt"},
+		{"invalid key 2", "/", "test-assets/server.crt", "test-assets/ca.crt"},
+		{"invalid cert", "test-assets/server.key", "authentication_test.go", "test-assets/ca.crt"},
+		{"invalid cert 2", "test-assets/server.key", "/", "test-assets/ca.crt"},
+		{"invalid CA", "test-assets/server.key", "test-assets/server.crt", "authentication_test.go"},
+		{"invalid CA 2", "test-assets/server.key", "test-assets/server.crt", "/"},
 	}
 
 	for _, c := range cs {
 		_, _, err := newTestServer(func() (credentials.TransportCredentials, error) {
-			return NewServerTransportCredentials(c[0], c[1], c[2])
+			return NewServerTransportCredentials(c.key, c.cert, c.ca)
 		})
-		assertNonNil(t, err)
+		if err == nil {
+			t.Errorf("%s, got nil error", c.test)
+		}
 	}
 }
