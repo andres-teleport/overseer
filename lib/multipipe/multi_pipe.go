@@ -26,7 +26,7 @@ type Reader struct {
 // there is a read error or the stream is closed, an error will be returned
 func (m *Reader) Read(p []byte) (n int, err error) {
 	if len(p) == 0 {
-		return 0, nil
+		return
 	}
 
 	m.parent.cond.L.Lock()

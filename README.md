@@ -14,11 +14,61 @@ the `GRUB_CMDLINE_LINUX_DEFAULT` variable in `/etc/default/grub` and then
 `sudo update-grub` must be run. Otherwise cgroup v2 won't have access to the
 needed cgroup controllers.
 
-### Running tests
+
+### Flag collision
+
+If the job command requires command line flags these will interfere with the CLI
+flag parser, a workaround is to pass the flags after a `--`, so the command will
+look like this:
+
+```
+./cli [CLI_FLAGS] -start CMD -- CMD_FLAGS_AND_ARGS
+```
+
+Example:
+
+```
+./cli -start ls -- -lh /
+```
+
+## Instructions
+
+### Running the tests
 
 The tests will need to run under a privileged user (i.e. using `sudo`) unless
 the current user has enough permissions to modify the cgroup2 filesystem.
 
-## Instructions
+```
+sudo ./test.sh
+```
 
-- For running the tests: `./test.sh`
+### Building the binaries
+
+```
+./build.sh
+```
+
+### Running the CLI tool
+
+```
+cd bin
+./cli
+```
+
+For more information about usage please look at the
+[design document](https://github.com/andres-teleport/overseer/blob/main/design.md).
+Default certificates for testing are provided under `bin/certs`.
+
+### Running the server
+
+The server will need to run under a privileged user (i.e. using `sudo`) unless
+the current user has enough permissions to modify the cgroup2 filesystem.
+
+```
+cd bin
+sudo ./server
+```
+
+For more information about usage please look at the
+[design document](https://github.com/andres-teleport/overseer/blob/main/design.md).
+Default certificates for testing are provided under `bin/certs`.

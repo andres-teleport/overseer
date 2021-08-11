@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package overseer;
+
+message Job {
+    string command = 1;
+    repeated string arguments = 2;
+}
+
+message JobID {
+    string id = 1;
+}
+
+message StopResponse {}
+
+enum Status {
+    STARTED = 0;
+    DONE = 1;
+    STOPPED = 2;
+}
+
+message StatusResponse {
+    Status status = 1;
+    int64 exitCode = 2;
+}
+
+message OutputChunk {
+    bytes output = 1;
+}
+
+service JobworkerService {
+    rpc Start(Job) returns (JobID) {}
+    rpc Stop(JobID) returns (StopResponse) {}
+    rpc Status(JobID) returns (StatusResponse) {}
+    rpc StdOut(JobID) returns (stream OutputChunk) {}
+    rpc StdErr(JobID) returns (stream OutputChunk) {}
+}

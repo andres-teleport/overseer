@@ -3,6 +3,7 @@ package supervisor
 import (
 	"errors"
 	"io/ioutil"
+	"os/exec"
 	"strings"
 	"sync"
 
@@ -98,18 +99,20 @@ func (s *Supervisor) StartJob(cmd string, args ...string) (string, error) {
 	s.mu.Unlock()
 
 	go func() {
-		state, err := job.cmd.Process.Wait()
+		err := job.cmd.Wait()
+
 		s.mu.Lock()
-		if err == nil {
-			job.status.ExitCode = state.ExitCode()
+		if exitError, ok := err.(*exec.ExitError); ok {
+			job.status.ExitCode = exitError.ExitCode()
 		}
-		job.stdout.CloseWithError(err)
-		job.stderr.CloseWithError(err)
 
 		if job.status.Status != StatusStopped {
 			job.status.Status = StatusDone
 		}
 		s.mu.Unlock()
+
+		job.stdout.CloseWithError(err)
+		job.stderr.CloseWithError(err)
 	}()
 
 	return id, nil

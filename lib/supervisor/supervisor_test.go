@@ -107,6 +107,22 @@ func TestStdOut(t *testing.T) {
 	if !bytes.Equal(out, []byte(testString)) {
 		t.Errorf("expected '%s', got '%s'", testString, string(out))
 	}
+
+	// Read again from a new reader
+	rd, err = sup.JobStdOut(jobID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, err = io.ReadAll(rd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out = bytes.TrimSpace(out)
+
+	if !bytes.Equal(out, []byte(testString)) {
+		t.Errorf("expected '%s', got '%s'", testString, string(out))
+	}
 }
 
 func TestStdErr(t *testing.T) {
@@ -118,6 +134,7 @@ func TestStdErr(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// StdErr
 	rd, err := sup.JobStdErr(jobID)
 	if err != nil {
 		t.Fatal(err)
@@ -132,6 +149,22 @@ func TestStdErr(t *testing.T) {
 	if !bytes.Equal(out, []byte(testString)) {
 		t.Errorf("expected '%s', got '%s'", testString, string(out))
 	}
+
+	// StdOut
+	rd, err = sup.JobStdOut(jobID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, err = io.ReadAll(rd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out = bytes.TrimSpace(out)
+
+	if len(out) > 0 {
+		t.Errorf("expected '', got '%s'", string(out))
+	}
 }
 
 func TestUnknownJobID(t *testing.T) {
@@ -139,5 +172,53 @@ func TestUnknownJobID(t *testing.T) {
 
 	if _, err := sup.JobStatus("fake-id"); err != ErrUnknownJobID {
 		t.Errorf("expected '%s', got '%s'", ErrUnknownJobID, err)
+	}
+}
+
+func TestStdOutReadTwice(t *testing.T) {
+	sup := NewSupervisor()
+	testString1 := "hello"
+	testString2 := "world"
+
+	jobID, err := sup.StartJob(
+		"sh", "-c",
+		"/bin/echo "+testString1+" && "+
+			"sleep 2 && "+
+			"/bin/echo "+testString2,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// StdOut
+	rd, err := sup.JobStdOut(jobID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 16)
+
+	// Read first string
+	n, err := rd.Read(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("read %d bytes", n)
+	out := bytes.TrimSpace(buf[:n])
+
+	if !bytes.Equal(out, []byte(testString1)) {
+		t.Errorf("expected '%s', got '%s'", testString1, string(out))
+	}
+
+	// Read second string
+	n, err = rd.Read(buf)
+	if err != io.EOF && err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("read %d bytes", n)
+	out = bytes.TrimSpace(buf[:n])
+
+	if !bytes.Equal(out, []byte(testString2)) {
+		t.Errorf("expected '%s', got '%s'", testString2, string(out))
 	}
 }
