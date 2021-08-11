@@ -92,10 +92,9 @@ func (s *Server) Start(ctx context.Context, job *api.Job) (*api.JobID, error) {
 
 func (s *Server) Stop(ctx context.Context, jobID *api.JobID) (*api.StopResponse, error) {
 	err := s.supervisor.StopJob(jobID.Id)
-
 	if err == supervisor.ErrJobFinished {
 		err = status.Error(codes.FailedPrecondition, err.Error())
-	} else {
+	} else if err != nil {
 		err = status.Error(codes.Internal, err.Error())
 	}
 
